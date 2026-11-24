@@ -43,27 +43,35 @@ jobs:
           name: ${{ matrix.target }}-${{ matrix.toolchain }}
           path: trunk/images/*.trx
 
-  publish:
+   publish:
     needs: [build]
     runs-on: ubuntu-22.04
     if: ${{ github.ref == 'refs/heads/main' }}
+    permissions:
+      contents: write # ✅ 必须添加，确保有权限创建 Release
     steps:
       - uses: actions/checkout@v4
+      
       - name: Download all artifacts
         uses: actions/download-artifact@v4
         with:
-          path: release_files/
-          merge-multiple: true
+          path: release_files/   # 统一下载到 release_files 目录
+          merge-multiple: true   # 将多个 artifact 的文件平铺合并
+          
+      - name: List Downloaded Files
+        run: ls -R release_files/ # ✅ 调试步骤：在日志中打印出下载的文件结构
+        
       - name: Set Tag Name
-        run: echo "TAG_NAME=$(date +%Y%m%d)" >> $GITHUB_ENV
-      - uses: rickstaa/action-create-tag@v1
+        # ✅ 增加时分秒，防止同一天多次编译导致 Tag 冲突报错
+        run: echo "TAG_NAME=$(date +%Y%m%d-%H%M)" >> $GITHUB_ENV
+        
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
         with:
-          tag: ${{ env.TAG_NAME }}
-          force_push_tag: true
-      - uses: ncipollo/release-action@v1
-        with:
-          commit: ${{ github.sha }}
-          tag: ${{ env.TAG_NAME }}
-          artifacts: "release_files/*.trx"
-          artifactErrorsFailBuild: true
-          allowUpdates: true
+          tag_name: ${{ env.TAG_NAME }}
+          name: Padavan K2P 自动编译 ${{ env.TAG_NAME }}
+          # ✅ 直接匹配目录下的所有 .trx 文件
+          files: release_files/*.trx
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
