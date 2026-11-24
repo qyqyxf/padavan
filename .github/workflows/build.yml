@@ -40,7 +40,6 @@ jobs:
           fi
       - uses: actions/upload-artifact@v4
         with:
-          # ✅ 修复：添加上 matrix.target 确保每个工件的名称唯一
           name: ${{ matrix.target }}-${{ matrix.toolchain }}
           path: trunk/images/*.trx
 
@@ -50,10 +49,11 @@ jobs:
     if: ${{ github.ref == 'refs/heads/main' }}
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/download-artifact@v4
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
         with:
-          # ✅ 修复：将所有的单独工件解压并合并到当前目录下
-          merge-multiple: true 
+          path: release_files/
+          merge-multiple: true
       - name: Set Tag Name
         run: echo "TAG_NAME=$(date +%Y%m%d)" >> $GITHUB_ENV
       - uses: rickstaa/action-create-tag@v1
@@ -64,6 +64,6 @@ jobs:
         with:
           commit: ${{ github.sha }}
           tag: ${{ env.TAG_NAME }}
-          # ✅ 修复：因为上面启用了合并，文件全在根目录下，直接匹配即可
-          artifacts: "*.trx" 
+          artifacts: "release_files/*.trx"
+          artifactErrorsFailBuild: true
           allowUpdates: true
