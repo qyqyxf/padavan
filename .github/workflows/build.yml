@@ -14,16 +14,16 @@ jobs:
         target: [K2P, K2P-NANO, K2P-USB]
         toolchain: [mipsel-linux-musl]
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - uses: hendrikmuhs/ccache-action@v1.2
         with:
           key: ${{ matrix.target }}-${{ matrix.toolchain }}
-      - uses: actions/setup-go@v4
+      - uses: actions/setup-go@v5
         with:
           go-version: '1.20'
           check-latest: true
           cache: false
-      - uses: actions/setup-node@v3
+      - uses: actions/setup-node@v4
         with:
           node-version: 18
           check-latest: true
@@ -40,24 +40,30 @@ jobs:
           fi
       - uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.toolchain }}
+          # ✅ 修复：添加上 matrix.target 确保每个工件的名称唯一
+          name: ${{ matrix.target }}-${{ matrix.toolchain }}
           path: trunk/images/*.trx
+
   publish:
     needs: [build]
     runs-on: ubuntu-22.04
     if: ${{ github.ref == 'refs/heads/main' }}
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
+        with:
+          # ✅ 修复：将所有的单独工件解压并合并到当前目录下
+          merge-multiple: true 
       - name: Set Tag Name
-        run: echo "TAG_ANME=$(date +%Y%m%d)" >> $GITHUB_ENV
+        run: echo "TAG_NAME=$(date +%Y%m%d)" >> $GITHUB_ENV
       - uses: rickstaa/action-create-tag@v1
         with:
-          tag: ${{ env.TAG_ANME }}
+          tag: ${{ env.TAG_NAME }}
           force_push_tag: true
       - uses: ncipollo/release-action@v1
         with:
           commit: ${{ github.sha }}
-          tag: ${{ env.TAG_ANME }}
-          artifacts: "mipsel-linux-musl/*.trx"
+          tag: ${{ env.TAG_NAME }}
+          # ✅ 修复：因为上面启用了合并，文件全在根目录下，直接匹配即可
+          artifacts: "*.trx" 
           allowUpdates: true
